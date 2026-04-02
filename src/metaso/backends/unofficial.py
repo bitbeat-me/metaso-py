@@ -1,15 +1,16 @@
-"""Unofficial backend using reverse-engineered API with uid-sid cookie auth."""
+"""Unofficial backend using browser-based search with uid-sid cookie auth."""
 
 from __future__ import annotations
 
 import json
 import re
+import subprocess
 from collections.abc import AsyncIterator
 
 import httpx
 
 from metaso.auth import CookieAuth
-from metaso.exceptions import AuthError, ServerError
+from metaso.exceptions import AuthError, BackendError, ServerError
 from metaso.types import SearchResponse, SearchResult
 
 from .base import BackendBase
@@ -21,16 +22,33 @@ FAKE_HEADERS = {
     "Accept-Encoding": "gzip, deflate, br",
     "Accept-Language": "zh-CN,zh;q=0.9",
     "Origin": "https://metaso.cn",
-    "Sec-Ch-Ua": '"Chromium";v="130", "Google Chrome";v="130"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"macOS"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin",
 }
 
 
+def _run_browser(*args: str, timeout: int = 60) -> str | None:
+    """Run agent-browser with --session-name metaso."""
+    try:
+        result = subprocess.run(
+            ["agent-browser", "--session-name", "metaso", *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        output = (result.stdout or "") + (result.stderr or "")
+        return output.strip() if output.strip() else ""
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
 class UnofficialBackend(BackendBase):
+    """Backend using browser-based search with cookie auth.
+
+    Search is performed by navigating the browser to metaso.cn/search/{convId}?q={query},
+    which triggers the page's internal search API. Results are extracted from the page.
+
+    Requires agent-browser to be installed and a valid session from `metaso login`.
+    """
+
     def __init__(self, auth: CookieAuth, base_url: str = BASE_URL):
         self._auth = auth
         self._base_url = base_url.rstrip("/")
@@ -49,6 +67,7 @@ class UnofficialBackend(BackendBase):
         return self._http_client
 
     async def _acquire_meta_token(self) -> str:
+        """Fetch meta-token from the Metaso homepage."""
         client = self._get_client()
         response = await client.get(
             f"{self._base_url}/",
@@ -71,7 +90,15 @@ class UnofficialBackend(BackendBase):
             return await self._acquire_meta_token()
         return self._meta_token
 
+    async def validate_auth(self) -> bool:
+        try:
+            await self._acquire_meta_token()
+            return True
+        except AuthError:
+            return False
+
     async def _create_session(self, question: str, mode: str) -> str:
+        """Create a search session and return conversation ID."""
         meta_token = await self._ensure_meta_token()
         engine_type = "scholar" if "scholar" in mode else "web"
         response = await self._get_client().post(
@@ -92,7 +119,10 @@ class UnofficialBackend(BackendBase):
         )
         if response.status_code != 200:
             raise ServerError(f"Failed to create session: {response.status_code}")
-        return response.json()["data"]["id"]
+        data = response.json()
+        if data.get("errCode") != 0:
+            raise ServerError(f"Session error: {data.get('errMsg', 'unknown')}")
+        return str(data["data"]["id"])
 
     async def search(
         self,
@@ -102,66 +132,70 @@ class UnofficialBackend(BackendBase):
         session_id: str | None = None,
         **kwargs,
     ) -> SearchResponse | AsyncIterator[dict]:
-        # Map scope to mode for unofficial API
+        """Execute search by navigating browser to metaso.cn/search/{convId}?q={query}.
+
+        This triggers the page's internal search API. Results are extracted from
+        the page after search completes.
+        """
+        import urllib.parse
+
         mode = kwargs.get("mode", "detail")
         conv_id = session_id or await self._create_session(query, mode)
-        if stream:
-            return self._search_stream(query, conv_id)
-        chunks = []
-        async for chunk in self._search_stream(query, conv_id):
-            chunks.append(chunk)
-        return SearchResponse(
-            query=query,
-            results=self._extract_results(chunks),
-            summary=self._extract_summary(chunks),
-            session_id=conv_id,
+
+        # Navigate browser to trigger search
+        encoded_q = urllib.parse.quote(query)
+        search_url = f"{self._base_url}/search/{conv_id}?q={encoded_q}"
+
+        result = _run_browser("open", search_url, timeout=30)
+        if result is None:
+            raise BackendError(
+                "agent-browser not available. Unofficial backend requires agent-browser. "
+                "Use official backend (API key) instead."
+            )
+
+        # Wait for search to complete (networkidle means SSE stream finished)
+        _run_browser("wait", "--load", "networkidle", timeout=120)
+
+        # Extract results from the page
+        _selector = (
+            ".search-result, .result-content, [class*=result], [class*=answer], main"
         )
+        _ref_filter = "[class*=ref], [class*=source], [class*=citation]"
+        _js = (
+            "JSON.stringify({"
+            "title: document.title,"
+            f"text: document.querySelector('{_selector}')?.innerText"
+            " || document.body.innerText.substring(0, 5000),"
+            f"refs: Array.from(document.querySelectorAll('a[href]'))"
+            f".filter(a => a.closest('{_ref_filter}'))"
+            ".map(a => ({title: a.textContent?.trim(), url: a.href}))"
+            ".filter(r => r.url.startsWith('http') && !r.url.includes('metaso.cn'))"
+            ".slice(0, 30)})"
+        )
+        page_data = _run_browser("eval", _js, timeout=15)
 
-    async def _search_stream(self, query: str, conv_id: str) -> AsyncIterator[dict]:
-        meta_token = await self._ensure_meta_token()
-        client = self._get_client()
-        from httpx_sse import aconnect_sse
-
-        async with aconnect_sse(
-            client,
-            "GET",
-            f"{self._base_url}/api/searchV2",
-            params={"sessionId": conv_id},
-            headers={**FAKE_HEADERS, "Cookie": self._generate_cookie(), "Token": meta_token},
-        ) as event_source:
-            async for sse in event_source.aiter_sse():
-                if sse.data == "[DONE]":
-                    break
-                try:
-                    yield json.loads(sse.data)
-                except json.JSONDecodeError:
-                    continue
-
-    async def validate_auth(self) -> bool:
-        """Check if current cookies are valid by fetching meta-token."""
-        try:
-            await self._acquire_meta_token()
-            return True
-        except AuthError:
-            return False
-
-    def _extract_results(self, chunks: list[dict]) -> list[SearchResult]:
-        """Extract search results from SSE chunks."""
         results = []
-        for chunk in chunks:
-            if chunk.get("type") == "set-reference":
-                for item in chunk.get("list", []):
+        summary = ""
+        try:
+            if page_data:
+                data = json.loads(page_data)
+                summary = data.get("text", "")
+                for i, ref in enumerate(data.get("refs", []), 1):
                     results.append(
                         SearchResult(
-                            id=str(item.get("index", "")),
-                            title=item.get("title", ""),
-                            url=item.get("link", ""),
-                            snippet=item.get("article_type", ""),
+                            id=str(i),
+                            title=ref.get("title", ""),
+                            url=ref.get("url", ""),
+                            snippet="",
                             source="webpage",
                         )
                     )
-        return results
+        except (json.JSONDecodeError, KeyError):
+            pass
 
-    def _extract_summary(self, chunks: list[dict]) -> str | None:
-        texts = [chunk.get("text", "") for chunk in chunks if chunk.get("text")]
-        return "".join(texts) if texts else None
+        return SearchResponse(
+            query=query,
+            results=results,
+            summary=summary if summary else None,
+            session_id=conv_id,
+        )

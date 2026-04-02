@@ -50,3 +50,23 @@ async def test_meta_token_not_found_raises_auth_error(backend):
 
         with pytest.raises(AuthError, match="meta-token not found"):
             await backend._acquire_meta_token()
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_validate_auth_success(backend):
+    respx.get("https://metaso.cn/").mock(return_value=httpx.Response(200, text=META_TOKEN_HTML))
+    async with httpx.AsyncClient() as http_client:
+        backend._http_client = http_client
+        assert await backend.validate_auth() is True
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_validate_auth_failure(backend):
+    respx.get("https://metaso.cn/").mock(
+        return_value=httpx.Response(200, text="<html>expired</html>")
+    )
+    async with httpx.AsyncClient() as http_client:
+        backend._http_client = http_client
+        assert await backend.validate_auth() is False
