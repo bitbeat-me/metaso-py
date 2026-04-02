@@ -66,15 +66,25 @@ class MetasoClient:
         return cls(backend, **kwargs)
 
     @classmethod
-    def auto(cls, **kwargs) -> MetasoClient:
+    def auto(cls, profile: str | None = None, **kwargs) -> MetasoClient:
         api_key = os.environ.get("METASO_API_KEY")
+        if not api_key:
+            import json
+
+            from metaso.paths import get_config_path
+
+            config_path = get_config_path()
+            if config_path.exists():
+                config = json.loads(config_path.read_text(encoding="utf-8"))
+                api_key = config.get("api_key")
         if api_key:
             return cls.from_api_key(api_key, **kwargs)
         try:
-            return cls.from_storage(**kwargs)
+            return cls.from_storage(profile=profile, **kwargs)
         except FileNotFoundError:
             raise ValueError(
                 "No credentials found. Either:\n"
                 "  1. Set METASO_API_KEY environment variable, or\n"
-                "  2. Run 'metaso login' to authenticate via browser."
+                "  2. Run 'metaso config set api-key <key>', or\n"
+                "  3. Run 'metaso login' to authenticate via browser."
             )

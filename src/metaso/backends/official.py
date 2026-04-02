@@ -104,6 +104,8 @@ class OfficialBackend(BackendBase):
 
         mode = kwargs.get("mode")
         body: dict[str, Any] = {"question": query, "lang": "zh", "stream": False}
+        if scope and scope != "webpage":
+            body["scope"] = scope
         if mode:
             body["mode"] = mode
         if session_id:
@@ -145,6 +147,8 @@ class OfficialBackend(BackendBase):
 
         mode = kwargs.get("mode")
         body: dict[str, Any] = {"question": query, "lang": "zh", "stream": True}
+        if scope and scope != "webpage":
+            body["scope"] = scope
         if mode:
             body["mode"] = mode
         if session_id:
@@ -166,9 +170,7 @@ class OfficialBackend(BackendBase):
 
     async def read_url(self, url: str, format: str = "markdown") -> ReaderResponse:
         """Read a URL using the reader API."""
-        data = await self._request(
-            "POST", "/api/v1/reader", json={"url": url, "format": format}
-        )
+        data = await self._request("POST", "/api/v1/reader", json={"url": url, "format": format})
         # API returns {"markdown": "...", "title": "...", "url": "..."} at top level
         content = data.get("markdown", data.get("content", ""))
         return ReaderResponse(

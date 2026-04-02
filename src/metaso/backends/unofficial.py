@@ -10,7 +10,7 @@ import httpx
 
 from metaso.auth import CookieAuth
 from metaso.exceptions import AuthError, ServerError
-from metaso.types import SearchResponse
+from metaso.types import SearchResponse, SearchResult
 
 from .base import BackendBase
 
@@ -111,7 +111,10 @@ class UnofficialBackend(BackendBase):
         async for chunk in self._search_stream(query, conv_id):
             chunks.append(chunk)
         return SearchResponse(
-            query=query, results=[], summary=self._extract_summary(chunks), session_id=conv_id
+            query=query,
+            results=self._extract_results(chunks),
+            summary=self._extract_summary(chunks),
+            session_id=conv_id,
         )
 
     async def _search_stream(self, query: str, conv_id: str) -> AsyncIterator[dict]:
@@ -141,6 +144,23 @@ class UnofficialBackend(BackendBase):
             return True
         except AuthError:
             return False
+
+    def _extract_results(self, chunks: list[dict]) -> list[SearchResult]:
+        """Extract search results from SSE chunks."""
+        results = []
+        for chunk in chunks:
+            if chunk.get("type") == "set-reference":
+                for item in chunk.get("list", []):
+                    results.append(
+                        SearchResult(
+                            id=str(item.get("index", "")),
+                            title=item.get("title", ""),
+                            url=item.get("link", ""),
+                            snippet=item.get("article_type", ""),
+                            source="webpage",
+                        )
+                    )
+        return results
 
     def _extract_summary(self, chunks: list[dict]) -> str | None:
         texts = [chunk.get("text", "") for chunk in chunks if chunk.get("text")]

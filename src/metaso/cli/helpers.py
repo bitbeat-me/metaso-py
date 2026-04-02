@@ -22,7 +22,8 @@ def async_command(f):
 
 
 def get_client(ctx: click.Context) -> MetasoClient:
-    return MetasoClient.auto()
+    profile = ctx.obj.get("profile") if ctx.obj else None
+    return MetasoClient.auto(profile=profile)
 
 
 def output_json(data: Any) -> None:
