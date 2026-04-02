@@ -8,6 +8,7 @@ from metaso.cli.file import file_group
 from metaso.cli.reader import read_cmd
 from metaso.cli.search import search_cmd
 from metaso.cli.session import config_group, login_cmd, logout_cmd, status_cmd
+from metaso.cli.skill import skill_group
 from metaso.cli.topic import topic_group
 from metaso.cli.user import user_cmd
 
@@ -33,3 +34,4 @@ cli.add_command(topic_group, "topic")
 cli.add_command(file_group, "file")
 cli.add_command(book_group, "book")
 cli.add_command(user_cmd, "user")
+cli.add_command(skill_group, "skill")

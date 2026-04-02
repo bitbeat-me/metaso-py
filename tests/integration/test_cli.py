@@ -120,3 +120,17 @@ def test_config_set_cookie(monkeypatch, tmp_path):
     result = runner.invoke(cli, ["config", "set", "cookie", "myuid-mysid"])
     assert result.exit_code == 0
     assert "saved" in result.output
+
+
+def test_skill_install(monkeypatch, tmp_path):
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["skill", "install"])
+    assert result.exit_code == 0
+    assert "installed" in result.output.lower()
+    skill_file = tmp_path / ".claude" / "skills" / "metaso" / "SKILL.md"
+    assert skill_file.exists()
+    content = skill_file.read_text()
+    assert "metaso search" in content
+    assert "metaso read" in content
+    assert "metaso chat" in content
