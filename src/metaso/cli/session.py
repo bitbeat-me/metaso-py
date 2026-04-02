@@ -35,17 +35,28 @@ def status_cmd(ctx):
     click.echo(f"Config: {config_path}")
 
 
+def _run_browser(*args: str, timeout: int = 60) -> str | None:
+    """Run an agent-browser command with --session-name metaso. Returns stdout or None on failure."""
+    try:
+        result = subprocess.run(
+            ["agent-browser", "--session-name", "metaso", *args],
+            capture_output=True, text=True, timeout=timeout,
+        )
+        # agent-browser uses ANSI codes and non-zero exit for non-fatal issues
+        output = (result.stdout or "") + (result.stderr or "")
+        return output.strip() if output.strip() else ""
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        return ""
+
+
 def _extract_cookies_from_browser() -> dict[str, str] | None:
     """Try to extract uid/sid cookies from the current agent-browser page."""
-    result = subprocess.run(
-        ["agent-browser", "--session", "metaso", "eval", "document.cookie"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    if result.returncode != 0:
+    output = _run_browser("eval", "document.cookie")
+    if not output:
         return None
-    cookie_str = result.stdout.strip()
+    cookie_str = output
     cookies = {}
     for part in cookie_str.split(";"):
         part = part.strip()
@@ -72,40 +83,16 @@ def _try_silent_refresh(profile: str) -> bool:
 
     Returns True if cookies were successfully refreshed without user interaction.
     """
-    try:
-        # Try to open metaso.cn using the persisted session (may still be logged in)
-        subprocess.run(
-            ["agent-browser", "--session-name", "metaso", "open", "https://metaso.cn"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=True,
-        )
-        subprocess.run(
-            ["agent-browser", "--session-name", "metaso", "wait", "--load", "networkidle"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        # Try to extract cookies
-        cookies = _extract_cookies_from_browser()
-        if cookies:
-            _save_cookies(cookies, profile)
-            subprocess.run(
-                ["agent-browser", "--session-name", "metaso", "close"],
-                capture_output=True,
-                text=True,
-            )
-            return True
-        # No cookies found - session expired, close browser
-        subprocess.run(
-            ["agent-browser", "--session-name", "metaso", "close"],
-            capture_output=True,
-            text=True,
-        )
+    if _run_browser("open", "https://metaso.cn", timeout=30) is None:
         return False
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    _run_browser("wait", "--load", "networkidle", timeout=30)
+    cookies = _extract_cookies_from_browser()
+    if cookies:
+        _save_cookies(cookies, profile)
+        _run_browser("close")
+        return True
+    _run_browser("close")
+    return False
 
 
 @click.command("login")
@@ -134,28 +121,11 @@ def login_cmd(ctx, force):
     click.echo("Please complete login (phone number or WeChat scan).")
     click.echo()
 
-    try:
-        subprocess.run(
-            ["agent-browser", "--session-name", "metaso", "open", "https://metaso.cn"],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except FileNotFoundError:
-        click.echo("Error: agent-browser not found.", err=True)
+    if _run_browser("open", "https://metaso.cn", timeout=30) is None:
+        click.echo("Error: agent-browser not found or failed to open.", err=True)
         click.echo("Alternative: metaso config set cookie <uid-sid>", err=True)
         raise SystemExit(1)
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
-        click.echo(f"Error: Failed to open browser: {e}", err=True)
-        raise SystemExit(1)
-
-    subprocess.run(
-        ["agent-browser", "--session-name", "metaso", "wait", "--load", "networkidle"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    _run_browser("wait", "--load", "networkidle", timeout=30)
 
     click.echo("Waiting for login... (press Ctrl+C to cancel)")
 
@@ -164,12 +134,7 @@ def login_cmd(ctx, force):
         cookies = _extract_cookies_from_browser()
         if cookies:
             _save_cookies(cookies, profile)
-            # Close browser (session state is auto-persisted by agent-browser)
-            subprocess.run(
-                ["agent-browser", "--session-name", "metaso", "close"],
-                capture_output=True,
-                text=True,
-            )
+            _run_browser("close")
             click.echo("\nLogin successful!")
             click.echo(f"  uid: {cookies['uid'][:8]}...")
             click.echo(f"  sid: {cookies['sid'][:8]}...")
@@ -178,11 +143,7 @@ def login_cmd(ctx, force):
 
         time.sleep(5)
 
-    subprocess.run(
-        ["agent-browser", "--session-name", "metaso", "close"],
-        capture_output=True,
-        text=True,
-    )
+    _run_browser("close")
     click.echo("Login timed out. Please try again.", err=True)
     raise SystemExit(1)
 
@@ -197,12 +158,7 @@ def logout_cmd(ctx):
     if cookie_path.exists():
         cookie_path.unlink()
         cleared = True
-    # Also clear agent-browser session
-    subprocess.run(
-        ["agent-browser", "--session-name", "metaso", "close"],
-        capture_output=True,
-        text=True,
-    )
+    _run_browser("close")
     if cleared:
         click.echo(f"Credentials and browser session cleared for profile '{profile}'.")
     else:
