@@ -1,4 +1,13 @@
+from unittest.mock import patch
+
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_dotenv():
+    """Prevent .env from polluting test environment."""
+    with patch("metaso.cli.load_dotenv"):
+        yield
 
 
 def pytest_collection_modifyitems(config, items):

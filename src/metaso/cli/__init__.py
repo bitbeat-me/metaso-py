@@ -1,6 +1,7 @@
 """Metaso CLI - command line interface."""
 
 import click
+from dotenv import load_dotenv
 
 from metaso.cli.bookshelf import book_group
 from metaso.cli.chat import chat_cmd
@@ -19,6 +20,7 @@ from metaso.cli.user import user_cmd
 @click.pass_context
 def cli(ctx, profile):
     """Metaso AI Search - Python client."""
+    load_dotenv()
     ctx.ensure_object(dict)
     ctx.obj["profile"] = profile
 
