@@ -11,8 +11,5 @@ class TopicsAPI:
     async def create(self, name: str) -> Topic:
         return await self._core.backend.create_topic(name)
 
-    async def list(self) -> list[Topic]:
-        return await self._core.backend.list_topics()
-
     async def delete(self, topic_id: str) -> bool:
         return await self._core.backend.delete_topic(topic_id)

@@ -25,25 +25,9 @@ async def topic_create(ctx, name, json_output):
         if json_output:
             output_json(asdict(topic))
         else:
-            click.echo(f"Created topic: {topic.name} (id: {topic.id})")
-
-
-@topic_group.command("list")
-@click.option("--json", "json_output", is_flag=True)
-@click.pass_context
-@async_command
-async def topic_list(ctx, json_output):
-    """List all topics."""
-    client = get_client(ctx)
-    async with client:
-        topics = await client.topics.list()
-        if json_output:
-            output_json({"topics": [asdict(t) for t in topics]})
-        else:
-            if not topics:
-                click.echo("No topics found.")
-            for t in topics:
-                click.echo(f"  {t.id}  {t.name}")
+            click.echo(f"Created topic: {topic.name}")
+            click.echo(f"  id: {topic.id}")
+            click.echo(f"  dirRootId: {topic.dir_root_id}")
 
 
 @topic_group.command("delete")

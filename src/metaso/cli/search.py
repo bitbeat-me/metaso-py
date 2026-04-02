@@ -43,8 +43,12 @@ async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output
             extra["mode"] = mode
         if stream:
             async for chunk in await client.search.query(
-                query, scope=scope, stream=True, include_summary=include_summary,
-                size=size, **extra,
+                query,
+                scope=scope,
+                stream=True,
+                include_summary=include_summary,
+                size=size,
+                **extra,
             ):
                 if json_output:
                     output_json(chunk)
@@ -55,13 +59,18 @@ async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output
                     elif chunk_type == "set-reference":
                         pass  # references handled at end
                     elif "text" in chunk and chunk_type not in (
-                        "heartbeat", "balance", "query",
+                        "heartbeat",
+                        "balance",
+                        "query",
                     ):
                         click.echo(chunk["text"], nl=False)
             click.echo()
         else:
             result = await client.search.query(
-                query, scope=scope, include_summary=include_summary, size=size,
+                query,
+                scope=scope,
+                include_summary=include_summary,
+                size=size,
                 **extra,
             )
             if json_output:

@@ -39,7 +39,9 @@ def _run_browser(*args: str, timeout: int = 60) -> str | None:
     try:
         result = subprocess.run(
             ["agent-browser", "--session-name", "metaso", *args],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         # agent-browser uses ANSI codes and non-zero exit for non-fatal issues
         output = (result.stdout or "") + (result.stderr or "")

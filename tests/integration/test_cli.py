@@ -20,7 +20,10 @@ SEARCH_RESPONSE = {
     },
 }
 READER_RESPONSE = {"markdown": "# Hello World", "url": "https://example.com", "title": "Example"}
-CHAT_RESPONSE = {"errCode": 0, "data": {"text": "The answer is 42.", "sessionId": "s1", "references": []}}
+CHAT_RESPONSE = {
+    "errCode": 0,
+    "data": {"text": "The answer is 42.", "sessionId": "s1", "references": []},
+}
 
 
 @respx.mock

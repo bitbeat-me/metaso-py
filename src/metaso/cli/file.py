@@ -14,38 +14,31 @@ def file_group():
 
 @file_group.command("upload")
 @click.argument("path", type=click.Path(exists=True))
-@click.option("--topic", required=True, help="Topic ID.")
+@click.option("--dir-root-id", required=True, help="dirRootId from topic creation.")
 @click.option("--json", "json_output", is_flag=True)
 @click.pass_context
 @async_command
-async def file_upload(ctx, path, topic, json_output):
-    """Upload a file to a topic."""
+async def file_upload(ctx, path, dir_root_id, json_output):
+    """Upload a file to a topic (requires dirRootId)."""
     client = get_client(ctx)
     async with client:
-        f = await client.files.upload(topic, path)
+        f = await client.files.upload(dir_root_id, path)
         if json_output:
             output_json(asdict(f))
         else:
             click.echo(f"Uploaded: {f.file_name} (id: {f.id})")
 
 
-@file_group.command("list")
-@click.option("--topic", required=True, help="Topic ID.")
-@click.option("--json", "json_output", is_flag=True)
+@file_group.command("progress")
+@click.argument("file_id")
 @click.pass_context
 @async_command
-async def file_list(ctx, topic, json_output):
-    """List files in a topic."""
+async def file_progress(ctx, file_id):
+    """Check file processing progress."""
     client = get_client(ctx)
     async with client:
-        files = await client.files.list(topic)
-        if json_output:
-            output_json({"files": [asdict(f) for f in files]})
-        else:
-            if not files:
-                click.echo("No files found.")
-            for f in files:
-                click.echo(f"  {f.id}  {f.file_name}  progress={f.progress}%")
+        p = await client.files.progress(file_id)
+        click.echo(f"Progress: {p}%")
 
 
 @file_group.command("delete")

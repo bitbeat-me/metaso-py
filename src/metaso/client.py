@@ -10,7 +10,6 @@ from metaso._files import FilesAPI
 from metaso._reader import ReaderAPI
 from metaso._search import SearchAPI
 from metaso._topics import TopicsAPI
-from metaso._user import UserAPI
 from metaso.auth import ApiKeyAuth, CookieAuth
 from metaso.backends.official import OfficialBackend
 from metaso.paths import get_cookie_path
@@ -27,7 +26,6 @@ class MetasoClient:
         self.topics = TopicsAPI(self._core)
         self.files = FilesAPI(self._core)
         self.bookshelf = BookshelfAPI(self._core)
-        self.user = UserAPI(self._core)
 
     async def __aenter__(self) -> MetasoClient:
         await self._core.open()

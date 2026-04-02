@@ -10,11 +10,13 @@ class FilesAPI:
     def __init__(self, core: ClientCore):
         self._core = core
 
-    async def upload(self, topic_id: str, file_path: Path | str) -> File:
-        return await self._core.backend.upload_file(topic_id, Path(file_path))
-
-    async def list(self, topic_id: str) -> list[File]:
-        return await self._core.backend.list_files(topic_id)
+    async def upload(self, dir_root_id: str, file_path: Path | str) -> File:
+        """Upload file to a topic. Requires dirRootId (from topic creation)."""
+        return await self._core.backend.upload_file(dir_root_id, Path(file_path))
 
     async def delete(self, file_id: str) -> bool:
         return await self._core.backend.delete_file(file_id)
+
+    async def progress(self, file_id: str) -> int:
+        """Check file processing progress (0-100)."""
+        return await self._core.backend.check_file_progress(file_id)

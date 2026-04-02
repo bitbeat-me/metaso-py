@@ -21,7 +21,6 @@ from metaso.types import (
     SearchResponse,
     SearchResult,
     Topic,
-    UserInfo,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,14 +41,10 @@ class OfficialBackend(BackendBase):
             "read_url",
             "chat",
             "create_topic",
-            "list_topics",
             "delete_topic",
             "upload_file",
-            "list_files",
             "delete_file",
             "add_book",
-            "list_books",
-            "user_info",
         }
 
     def _auth_headers(self) -> dict[str, str]:
@@ -194,7 +189,7 @@ class OfficialBackend(BackendBase):
         )
 
     async def create_topic(self, name: str) -> Topic:
-        data = await self._request("POST", "/api/open/topic", json={"name": name})
+        data = await self._request("PUT", "/api/open/topic", json={"name": name})
         payload = data.get("data", {})
         return Topic(
             id=payload.get("id", ""),
@@ -202,86 +197,42 @@ class OfficialBackend(BackendBase):
             dir_root_id=payload.get("dirRootId"),
         )
 
-    async def list_topics(self) -> list[Topic]:
-        data = await self._request("GET", "/api/open/topics")
-        items = data.get("data", [])
-        return [
-            Topic(
-                id=item.get("id", ""),
-                name=item.get("name", ""),
-                dir_root_id=item.get("dirRootId"),
-            )
-            for item in items
-        ]
-
     async def delete_topic(self, topic_id: str) -> bool:
-        await self._request("DELETE", f"/api/open/topic/{topic_id}")
+        await self._request("POST", "/api/open/topic/trash", json={"ids": [topic_id]})
         return True
 
     async def upload_file(self, topic_id: str, file_path: Path) -> File:
+        """Upload file. topic_id here must be the dirRootId, not the topic id."""
         with open(file_path, "rb") as f:
             data = await self._request(
-                "POST",
-                f"/api/open/topic/{topic_id}/file",
+                "PUT",
+                f"/api/open/file/{topic_id}",
                 files={"file": (file_path.name, f)},
             )
-        payload = data.get("data", {})
+        file_data = data.get("data", [{}])[0]
         return File(
-            id=payload.get("id", ""),
-            file_name=payload.get("fileName", file_path.name),
-            parent_id=topic_id,
-            progress=payload.get("progress", 0),
-            status=payload.get("status", "processing"),
+            id=file_data.get("id", ""),
+            file_name=file_data.get("fileName", file_path.name),
+            parent_id=file_data.get("parentId", topic_id),
+            progress=file_data.get("progress", 0),
         )
 
-    async def list_files(self, topic_id: str) -> list[File]:
-        data = await self._request("GET", f"/api/open/topic/{topic_id}/files")
-        items = data.get("data", [])
-        return [
-            File(
-                id=item.get("id", ""),
-                file_name=item.get("fileName", ""),
-                parent_id=topic_id,
-                progress=item.get("progress", 0),
-                status=item.get("status", "processing"),
-            )
-            for item in items
-        ]
+    async def check_file_progress(self, file_id: str) -> int:
+        """Check file processing progress (0-100)."""
+        data = await self._request("GET", f"/api/open/file/{file_id}/progress")
+        return data.get("data", 0)
 
     async def delete_file(self, file_id: str) -> bool:
-        await self._request("DELETE", f"/api/open/file/{file_id}")
+        await self._request("POST", "/api/open/file/trash", json={"ids": [file_id]})
         return True
 
     async def add_book(self, topic_id: str, url: str) -> Book:
-        data = await self._request("POST", f"/api/open/topic/{topic_id}/book", json={"url": url})
+        """Add book. Note: books are global, topic_id is ignored by official API."""
+        data = await self._request("PUT", "/api/open/book", json={"url": url})
         payload = data.get("data", {})
         return Book(
             id=payload.get("id", ""),
             title=payload.get("title", ""),
             file_id=payload.get("fileId", ""),
             progress=payload.get("progress", 0),
-            status=payload.get("status", "processing"),
-        )
-
-    async def list_books(self, topic_id: str) -> list[Book]:
-        data = await self._request("GET", f"/api/open/topic/{topic_id}/books")
-        items = data.get("data", [])
-        return [
-            Book(
-                id=item.get("id", ""),
-                title=item.get("title", ""),
-                file_id=item.get("fileId", ""),
-                progress=item.get("progress", 0),
-                status=item.get("status", "processing"),
-            )
-            for item in items
-        ]
-
-    async def user_info(self) -> UserInfo:
-        data = await self._request("GET", "/api/open/user/info")
-        payload = data.get("data", {})
-        return UserInfo(
-            uid=payload.get("uid", ""),
-            nickname=payload.get("nickname"),
-            vip_level=payload.get("vipLevel", 0),
         )
