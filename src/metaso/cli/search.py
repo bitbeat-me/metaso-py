@@ -22,16 +22,20 @@ from metaso.cli.helpers import async_command, get_client, output_json
     "-m",
     default=None,
     type=click.Choice(["concise", "detail", "research"]),
-    help="Search mode (concise/detail/research).",
+    help="Search mode.",
 )
 @click.option("--include-summary", is_flag=True, help="Include AI summary.")
 @click.option("--size", default=10, type=int, help="Number of results.")
 @click.option("--json", "json_output", is_flag=True, help="JSON output.")
-@click.option("--stream", is_flag=True, help="Stream results.")
+@click.option("--stream", is_flag=True, help="Stream results progressively (recommended for research mode).")
 @click.pass_context
 @async_command
 async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output, stream):
-    """Search Metaso AI."""
+    """Search Metaso AI.
+
+    For deep research (--mode research), use --stream to see results
+    as they arrive instead of waiting for the full response.
+    """
     client = get_client(ctx)
     async with client:
         extra = {}
@@ -39,8 +43,8 @@ async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output
             extra["mode"] = mode
         if stream:
             async for chunk in await client.search.query(
-                query, scope=scope, stream=True, include_summary=include_summary, size=size,
-                **extra,
+                query, scope=scope, stream=True, include_summary=include_summary,
+                size=size, **extra,
             ):
                 if json_output:
                     output_json(chunk)
@@ -63,5 +67,6 @@ async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output
                 for i, r in enumerate(result.results, 1):
                     click.echo(f"  {i}. {r.title}")
                     click.echo(f"     {r.url}")
-                    click.echo(f"     {r.snippet[:100]}")
+                    if r.snippet:
+                        click.echo(f"     {r.snippet[:100]}")
                     click.echo()
