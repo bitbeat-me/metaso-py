@@ -1,5 +1,7 @@
 """Official Metaso backend using API key authentication."""
+
 from __future__ import annotations
+
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -9,9 +11,16 @@ import httpx
 
 from metaso.auth import ApiKeyAuth
 from metaso.backends.base import BackendBase
-from metaso.exceptions import AuthError, RateLimitError, ServerError, BackendError
+from metaso.exceptions import AuthError, BackendError, RateLimitError, ServerError
 from metaso.types import (
-    Book, File, SearchResponse, SearchResult, Topic, UserInfo, ReaderResponse, ChatResponse,
+    Book,
+    ChatResponse,
+    File,
+    ReaderResponse,
+    SearchResponse,
+    SearchResult,
+    Topic,
+    UserInfo,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,13 +107,14 @@ class OfficialBackend(BackendBase):
 
         data = await self._request("POST", "/api/open/search/v2", json=body)
         payload = data.get("data", {})
-        items = payload.get("items", [])
+        # Official API returns "references" (not "items")
+        items = payload.get("references", payload.get("items", []))
         results = [
             SearchResult(
-                id=item.get("id", ""),
+                id=str(item.get("index", item.get("id", ""))),
                 title=item.get("title", ""),
-                url=item.get("url", ""),
-                snippet=item.get("snippet", ""),
+                url=item.get("link", item.get("url", "")),
+                snippet=item.get("snippet", item.get("article_type", "")),
                 source=item.get("source", "webpage"),
             )
             for item in items
@@ -112,7 +122,7 @@ class OfficialBackend(BackendBase):
         return SearchResponse(
             query=query,
             results=results,
-            session_id=payload.get("sessionId"),
+            session_id=str(payload.get("sessionId", "")) if payload.get("sessionId") else None,
         )
 
     async def _search_stream(
@@ -135,7 +145,9 @@ class OfficialBackend(BackendBase):
         url = f"{BASE_URL}/api/open/search/v2"
         headers = self._auth_headers()
 
-        async with aconnect_sse(self._http_client, "POST", url, headers=headers, json=body) as event_source:
+        async with aconnect_sse(
+            self._http_client, "POST", url, headers=headers, json=body
+        ) as event_source:
             async for event in event_source.aiter_sse():
                 if event.data == "[DONE]":
                     break
@@ -153,7 +165,9 @@ class OfficialBackend(BackendBase):
 
     async def chat(self, message: str, model: str = "fast") -> ChatResponse:
         """Chat using the official API."""
-        data = await self._request("POST", "/api/v1/chat", json={"message": message, "model": model})
+        data = await self._request(
+            "POST", "/api/v1/chat", json={"message": message, "model": model}
+        )
         payload = data.get("data", {})
         return ChatResponse(
             message=message,
@@ -221,9 +235,7 @@ class OfficialBackend(BackendBase):
         return True
 
     async def add_book(self, topic_id: str, url: str) -> Book:
-        data = await self._request(
-            "POST", f"/api/open/topic/{topic_id}/book", json={"url": url}
-        )
+        data = await self._request("POST", f"/api/open/topic/{topic_id}/book", json={"url": url})
         payload = data.get("data", {})
         return Book(
             id=payload.get("id", ""),
