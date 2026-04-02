@@ -51,6 +51,7 @@ class MetasoClient:
         cookie_path = get_cookie_path(profile)
         auth = CookieAuth.from_storage(cookie_path)
         from metaso.backends.unofficial import UnofficialBackend
+
         backend = UnofficialBackend(auth=auth)
         return cls(backend, **kwargs)
 
