@@ -1,0 +1,16 @@
+{
+  "site": "metaso",
+  "target_url": "https://metaso.cn",
+  "final_url": "https://metaso.cn/search-v2/8727924932627439617?conversationId=8727924932627439617",
+  "title": "请深度研究苏垦农发（601952）的农...",
+  "framework": {
+    "nextjs": false,
+    "nuxt": false,
+    "react": false,
+    "vue2": false,
+    "vue3": false
+  },
+  "stores": [],
+  "top_strategy": "public",
+  "explored_at": "2026-04-02T09:40:29.766Z"
+}

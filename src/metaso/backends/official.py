@@ -227,8 +227,8 @@ class OfficialBackend(BackendBase):
         return True
 
     async def add_book(self, topic_id: str, url: str) -> Book:
-        """Add book. Note: books are global, topic_id is ignored by official API."""
-        data = await self._request("PUT", "/api/open/book", json={"url": url})
+        """Add book by URL. Uses form data (not JSON). Books are global."""
+        data = await self._request("PUT", "/api/open/book", data={"url": url})
         payload = data.get("data", {})
         return Book(
             id=payload.get("id", ""),
