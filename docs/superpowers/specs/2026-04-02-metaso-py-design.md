@@ -24,8 +24,8 @@ Backend Layer (backends/)
 
 - `client.py`, `_core.py`, `auth.py`, `types.py`, `exceptions.py`, `paths.py`
 - `backends/base.py`, `backends/official.py`
-- `_search.py` (single domain API)
-- `cli/session.py` (config set api-key, status), `cli/search.py`
+- `_search.py`, `_reader.py`, `_chat.py` (core domain APIs)
+- `cli/session.py` (config set api-key, status), `cli/search.py`, `cli/reader.py`, `cli/chat.py`
 - Tests: unit + integration (respx fixtures)
 - Build: pyproject.toml, uv + hatchling
 
@@ -56,6 +56,8 @@ src/metaso/
 ├── paths.py                 # Config/data path management
 ├── _core.py                 # ClientCore (httpx, transport, dispatch)
 ├── _search.py               # client.search (SearchAPI)
+├── _reader.py               # client.reader (ReaderAPI)
+├── _chat.py                 # client.chat (ChatAPI)
 ├── _topics.py               # client.topics (TopicsAPI) [Phase 2]
 ├── _files.py                # client.files (FilesAPI) [Phase 2]
 ├── _bookshelf.py            # client.bookshelf (BookshelfAPI) [Phase 2]
@@ -70,6 +72,8 @@ src/metaso/
     ├── helpers.py            # Shared CLI utilities
     ├── session.py            # config, status, login [Phase 2], logout [Phase 2]
     ├── search.py             # search command
+    ├── reader.py             # read URL content
+    ├── chat.py               # RAG chat
     ├── topic.py              # [Phase 2]
     ├── file.py               # [Phase 2]
     ├── bookshelf.py          # [Phase 2]
@@ -110,9 +114,15 @@ class MetasoClient:
 
 ```python
 async with MetasoClient.from_api_key("sk-xxx") as client:
-    # Search
-    response = await client.search.query("AI trends", mode="concise")
-    response = await client.search.query("AI trends", mode="research", stream=True)
+    # Search (scope: webpage, document, paper, image, video, podcast)
+    response = await client.search.query("AI trends", scope="webpage")
+    response = await client.search.query("AI trends", scope="paper", include_summary=True)
+
+    # Reader - read URL content
+    content = await client.reader.read("https://example.com", format="markdown")
+
+    # Chat - RAG intelligent Q&A
+    answer = await client.chat.ask("explain quantum computing", model="fast")
 
     # Topics [Phase 2]
     topic = await client.topics.create("My Research")
@@ -256,6 +266,18 @@ class SearchResponse:
     session_id: str | None = None    # For multi-turn conversations
 
 @dataclass
+class ReaderResponse:
+    url: str
+    content: str
+    format: str  # "json" or "markdown"
+
+@dataclass
+class ChatResponse:
+    message: str
+    answer: str
+    model: str = "fast"
+
+@dataclass
 class Topic:
     id: str
     name: str
@@ -370,11 +392,20 @@ metaso config set api-key <key>           # Store API key
 metaso config set backend <official|unofficial|auto>
 metaso status                             # Auth status, active backend, profile
 
-metaso search "query"                     # Default (concise) mode
-metaso search "query" --mode detail       # Modes: concise, detail, research
-metaso search "query" --mode scholar      # Academic search
+metaso search "query"                     # Default scope (webpage)
+metaso search "query" --scope paper       # Scopes: webpage, document, paper, image, video, podcast
+metaso search "query" --include-summary   # Include AI summary
+metaso search "query" --size 20           # Number of results
 metaso search "query" --stream            # SSE streaming output
 metaso search "query" --json              # JSON output
+
+metaso read "https://example.com"         # Read URL content (markdown)
+metaso read "https://example.com" --format json
+metaso read "https://example.com" --json  # JSON output
+
+metaso chat "question"                    # RAG intelligent Q&A
+metaso chat "question" --model fast       # Model: fast (default)
+metaso chat "question" --json             # JSON output
 ```
 
 ### Phase 2 Commands
