@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -142,7 +143,10 @@ class OfficialBackend(BackendBase):
         if self._http_client is None:
             raise BackendError("HTTP client not initialized.")
 
+        mode = kwargs.get("mode")
         body: dict[str, Any] = {"question": query, "lang": "zh", "stream": True}
+        if mode:
+            body["mode"] = mode
         if session_id:
             body["sessionId"] = session_id
 
@@ -155,7 +159,10 @@ class OfficialBackend(BackendBase):
             async for event in event_source.aiter_sse():
                 if event.data == "[DONE]":
                     break
-                yield {"data": event.data}
+                try:
+                    yield json.loads(event.data)
+                except json.JSONDecodeError:
+                    continue
 
     async def read_url(self, url: str, format: str = "markdown") -> ReaderResponse:
         """Read a URL using the reader API."""

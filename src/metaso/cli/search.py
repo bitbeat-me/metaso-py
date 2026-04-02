@@ -49,9 +49,15 @@ async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output
                 if json_output:
                     output_json(chunk)
                 else:
-                    text = chunk.get("text", chunk.get("data", ""))
-                    if text:
-                        click.echo(text, nl=False)
+                    chunk_type = chunk.get("type", "")
+                    if chunk_type == "append-text":
+                        click.echo(chunk.get("text", ""), nl=False)
+                    elif chunk_type == "set-reference":
+                        pass  # references handled at end
+                    elif "text" in chunk and chunk_type not in (
+                        "heartbeat", "balance", "query",
+                    ):
+                        click.echo(chunk["text"], nl=False)
             click.echo()
         else:
             result = await client.search.query(
