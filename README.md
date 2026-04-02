@@ -190,6 +190,13 @@ ruff check src/ tests/
 mypy src/metaso --ignore-missing-imports
 ```
 
+## Acknowledgments
+
+- [notebooklm-py](https://github.com/teng-lin/notebooklm-py) - Architecture reference. metaso-py follows its layered design (CLI / Client / Core / Backend), skill format, and login flow.
+- [metaso-sdk](https://github.com/SkywardAI/metaso-sdk) - Official Metaso Python SDK. Provided API endpoint shapes and data models.
+- [metaso-free-api](https://github.com/LLM-Red-Team/metaso-free-api) - Reverse-engineered Metaso API. Provided uid-sid auth pattern and SSE streaming reference.
+- [Metaso AI Search](https://metaso.cn) - The search service this client wraps.
+
 ## License
 
 MIT
