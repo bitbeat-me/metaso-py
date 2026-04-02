@@ -7,7 +7,7 @@ from metaso.cli.chat import chat_cmd
 from metaso.cli.file import file_group
 from metaso.cli.reader import read_cmd
 from metaso.cli.search import search_cmd
-from metaso.cli.session import config_group, status_cmd
+from metaso.cli.session import config_group, login_cmd, logout_cmd, status_cmd
 from metaso.cli.topic import topic_group
 from metaso.cli.user import user_cmd
 
@@ -27,6 +27,8 @@ cli.add_command(read_cmd, "read")
 cli.add_command(chat_cmd, "chat")
 cli.add_command(status_cmd, "status")
 cli.add_command(config_group, "config")
+cli.add_command(login_cmd, "login")
+cli.add_command(logout_cmd, "logout")
 cli.add_command(topic_group, "topic")
 cli.add_command(file_group, "file")
 cli.add_command(book_group, "book")

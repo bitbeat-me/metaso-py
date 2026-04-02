@@ -89,3 +89,34 @@ def test_config_set_api_key(monkeypatch, tmp_path):
     result = runner.invoke(cli, ["config", "set", "api-key", "sk-new"])
     assert result.exit_code == 0
     assert "saved" in result.output
+
+
+def test_logout_no_credentials(monkeypatch, tmp_path):
+    monkeypatch.setenv("METASO_HOME", str(tmp_path))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["logout"])
+    assert result.exit_code == 0
+    assert "No credentials" in result.output
+
+
+def test_logout_clears_credentials(monkeypatch, tmp_path):
+    monkeypatch.setenv("METASO_HOME", str(tmp_path))
+    # Create a fake cookie file
+    profile_dir = tmp_path / "profiles" / "default"
+    profile_dir.mkdir(parents=True)
+    cookie_file = profile_dir / "cookies.json"
+    cookie_file.write_text('{"uid": "u1", "sid": "s1"}')
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["logout"])
+    assert result.exit_code == 0
+    assert "Credentials cleared" in result.output
+    assert not cookie_file.exists()
+
+
+def test_config_set_cookie(monkeypatch, tmp_path):
+    monkeypatch.setenv("METASO_HOME", str(tmp_path))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "set", "cookie", "myuid-mysid"])
+    assert result.exit_code == 0
+    assert "saved" in result.output
