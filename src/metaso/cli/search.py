@@ -27,7 +27,7 @@ from metaso.cli.helpers import async_command, get_client, output_json
 @click.option("--include-summary", is_flag=True, help="Include AI summary.")
 @click.option("--size", default=10, type=int, help="Number of results.")
 @click.option("--json", "json_output", is_flag=True, help="JSON output.")
-@click.option("--stream", is_flag=True, help="Stream results progressively (recommended for research mode).")
+@click.option("--stream", is_flag=True, help="Stream results progressively.")
 @click.pass_context
 @async_command
 async def search_cmd(ctx, query, scope, mode, include_summary, size, json_output, stream):

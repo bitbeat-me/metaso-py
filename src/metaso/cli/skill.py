@@ -39,6 +39,8 @@ metaso login               # Browser login (extracts cookies)
 | Search (all scopes) | `metaso search "query" --scope <webpage\\|document\\|paper\\|image\\|video\\|podcast>` |
 | Search (with summary) | `metaso search "query" --include-summary` |
 | Search (JSON) | `metaso search "query" --json` |
+| Deep research | `metaso search "query" --mode research` |
+| Deep research (stream) | `metaso search "query" --mode research --stream` |
 | Read URL | `metaso read "https://..." --json` |
 | Read URL (markdown) | `metaso read "https://..." --format markdown` |
 | Chat (RAG Q&A) | `metaso chat "question" --json` |
@@ -96,6 +98,44 @@ Profile: default
 API Key: sk-xxx...xxxx
 Backend: official
 ```
+
+## Deep Research (Background Pattern)
+
+Deep research (`--mode research`) can take 30-120 seconds. For non-blocking usage,
+use `--stream` which returns results progressively as they are generated.
+
+**Interactive (blocking):**
+```bash
+metaso search "AI agent trends" --mode research
+```
+
+**Streaming (progressive, recommended):**
+```bash
+metaso search "AI agent trends" --mode research --stream
+```
+
+**Agent background pattern (non-blocking):**
+When running deep research from an agent context, dispatch to a background subagent
+so the main conversation continues while research runs:
+
+```python
+Agent(
+    prompt='Run this command and return the full output:\\n'
+           'metaso search "AI agent trends" --mode research --json',
+    subagent_type="general-purpose",
+    run_in_background=True,
+)
+```
+
+The subagent runs the research, and the agent is notified when it completes.
+This is the recommended pattern for deep research in agent workflows.
+
+**Search modes:**
+| Mode | Speed | Output |
+|------|-------|--------|
+| `concise` | Fast (~3s) | References only |
+| `detail` | Medium (~5s) | References + summary |
+| `research` | Slow (30-120s) | Full AI analysis report + references |
 
 ## Error Handling
 
