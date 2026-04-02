@@ -133,9 +133,12 @@ This is the recommended pattern for deep research in agent workflows.
 **Search modes:**
 | Mode | Speed | Output |
 |------|-------|--------|
-| `concise` | Fast (~3s) | References only |
-| `detail` | Medium (~5s) | References + summary |
-| `research` | Slow (30-120s) | Full AI analysis report + references |
+| `concise` | Fast (~3s) | References + short summary |
+| `detail` | Medium (~5s) | References + detailed summary |
+| `research` | Slow (30-120s) | Full AI analysis report + many references + follow-up questions |
+
+**Note:** `metaso chat` uses the search API internally (mode=fast). For deeper
+answers, use `metaso search "question" --mode research` instead.
 
 ## Error Handling
 

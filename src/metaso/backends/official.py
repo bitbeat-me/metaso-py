@@ -166,23 +166,28 @@ class OfficialBackend(BackendBase):
 
     async def read_url(self, url: str, format: str = "markdown") -> ReaderResponse:
         """Read a URL using the reader API."""
-        data = await self._request("POST", "/api/v1/reader", json={"url": url, "format": format})
-        payload = data.get("data", {})
+        data = await self._request(
+            "POST", "/api/v1/reader", json={"url": url, "format": format}
+        )
+        # API returns {"markdown": "...", "title": "...", "url": "..."} at top level
+        content = data.get("markdown", data.get("content", ""))
         return ReaderResponse(
-            url=payload.get("url", url),
-            content=payload.get("content", ""),
+            url=data.get("url", url),
+            content=content,
             format=format,
         )
 
     async def chat(self, message: str, model: str = "fast") -> ChatResponse:
-        """Chat using the official API."""
+        """Chat via search API with concise mode (no standalone chat endpoint)."""
         data = await self._request(
-            "POST", "/api/v1/chat", json={"message": message, "model": model}
+            "POST",
+            "/api/open/search/v2",
+            json={"question": message, "lang": "zh", "stream": False, "mode": model},
         )
         payload = data.get("data", {})
         return ChatResponse(
             message=message,
-            answer=payload.get("answer", ""),
+            answer=payload.get("text", ""),
             model=model,
         )
 

@@ -19,8 +19,8 @@ SEARCH_RESPONSE = {
         "sessionId": "s1",
     },
 }
-READER_RESPONSE = {"errCode": 0, "data": {"content": "# Hello World", "url": "https://example.com"}}
-CHAT_RESPONSE = {"errCode": 0, "data": {"answer": "The answer is 42."}}
+READER_RESPONSE = {"markdown": "# Hello World", "url": "https://example.com", "title": "Example"}
+CHAT_RESPONSE = {"errCode": 0, "data": {"text": "The answer is 42.", "sessionId": "s1", "references": []}}
 
 
 @respx.mock
@@ -65,7 +65,7 @@ def test_read_command(monkeypatch):
 @respx.mock
 def test_chat_command(monkeypatch):
     monkeypatch.setenv("METASO_API_KEY", "sk-test")
-    respx.post("https://metaso.cn/api/v1/chat").mock(
+    respx.post("https://metaso.cn/api/open/search/v2").mock(
         return_value=httpx.Response(200, json=CHAT_RESPONSE)
     )
     runner = CliRunner()

@@ -34,10 +34,14 @@ SEARCH_RESPONSE_JSON = {
 }
 
 READER_RESPONSE_JSON = {
-    "errCode": 0,
-    "data": {"content": "# Hello World", "url": "https://example.com"},
+    "markdown": "# Hello World",
+    "url": "https://example.com",
+    "title": "Example",
 }
-CHAT_RESPONSE_JSON = {"errCode": 0, "data": {"answer": "AI is artificial intelligence."}}
+CHAT_RESPONSE_JSON = {
+    "errCode": 0,
+    "data": {"text": "AI is artificial intelligence.", "sessionId": "s1", "references": []},
+}
 
 
 @respx.mock
@@ -82,7 +86,7 @@ async def test_read_url(backend):
 @respx.mock
 @pytest.mark.asyncio
 async def test_chat(backend):
-    respx.post("https://metaso.cn/api/v1/chat").mock(
+    respx.post("https://metaso.cn/api/open/search/v2").mock(
         return_value=httpx.Response(200, json=CHAT_RESPONSE_JSON)
     )
     async with httpx.AsyncClient() as http_client:
