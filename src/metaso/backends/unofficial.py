@@ -1,12 +1,17 @@
 """Unofficial backend using reverse-engineered API with uid-sid cookie auth."""
+
 from __future__ import annotations
+
 import json
 import re
 from collections.abc import AsyncIterator
+
 import httpx
+
 from metaso.auth import CookieAuth
-from metaso.exceptions import AuthError, NetworkError, ServerError
-from metaso.types import SearchResponse, SearchResult, ReaderResponse, ChatResponse
+from metaso.exceptions import AuthError, ServerError
+from metaso.types import SearchResponse
+
 from .base import BackendBase
 
 BASE_URL = "https://metaso.cn"
@@ -23,6 +28,7 @@ FAKE_HEADERS = {
     "Sec-Fetch-Mode": "cors",
     "Sec-Fetch-Site": "same-origin",
 }
+
 
 class UnofficialBackend(BackendBase):
     def __init__(self, auth: CookieAuth, base_url: str = BASE_URL):
@@ -53,7 +59,10 @@ class UnofficialBackend(BackendBase):
             raise AuthError(f"Failed to load Metaso homepage: {response.status_code}")
         match = re.search(r'<meta id="meta-token" content="([^"]*)"', response.text)
         if not match or not match.group(1):
-            raise AuthError("meta-token not found. Session may have expired. Run 'metaso login' to re-authenticate.")
+            raise AuthError(
+                "meta-token not found. Session may have expired. "
+                "Run 'metaso login' to re-authenticate."
+            )
         self._meta_token = match.group(1)
         return self._meta_token
 
@@ -67,16 +76,32 @@ class UnofficialBackend(BackendBase):
         engine_type = "scholar" if "scholar" in mode else "web"
         response = await self._get_client().post(
             f"{self._base_url}/api/session",
-            json={"question": question, "mode": mode, "engineType": engine_type, "scholarSearchDomain": "all"},
-            headers={**FAKE_HEADERS, "Cookie": self._generate_cookie(), "Token": meta_token,
-                     "Is-Mini-Webview": "0", "Content-Type": "application/json"},
+            json={
+                "question": question,
+                "mode": mode,
+                "engineType": engine_type,
+                "scholarSearchDomain": "all",
+            },
+            headers={
+                **FAKE_HEADERS,
+                "Cookie": self._generate_cookie(),
+                "Token": meta_token,
+                "Is-Mini-Webview": "0",
+                "Content-Type": "application/json",
+            },
         )
         if response.status_code != 200:
             raise ServerError(f"Failed to create session: {response.status_code}")
         return response.json()["data"]["id"]
 
-    async def search(self, query: str, scope: str = "webpage", stream: bool = False,
-                     session_id: str | None = None, **kwargs) -> SearchResponse | AsyncIterator[dict]:
+    async def search(
+        self,
+        query: str,
+        scope: str = "webpage",
+        stream: bool = False,
+        session_id: str | None = None,
+        **kwargs,
+    ) -> SearchResponse | AsyncIterator[dict]:
         # Map scope to mode for unofficial API
         mode = kwargs.get("mode", "detail")
         conv_id = session_id or await self._create_session(query, mode)
@@ -85,15 +110,22 @@ class UnofficialBackend(BackendBase):
         chunks = []
         async for chunk in self._search_stream(query, conv_id):
             chunks.append(chunk)
-        return SearchResponse(query=query, results=[], summary=self._extract_summary(chunks), session_id=conv_id)
+        return SearchResponse(
+            query=query, results=[], summary=self._extract_summary(chunks), session_id=conv_id
+        )
 
     async def _search_stream(self, query: str, conv_id: str) -> AsyncIterator[dict]:
         meta_token = await self._ensure_meta_token()
         client = self._get_client()
         from httpx_sse import aconnect_sse
-        async with aconnect_sse(client, "GET", f"{self._base_url}/api/searchV2",
-                                 params={"sessionId": conv_id},
-                                 headers={**FAKE_HEADERS, "Cookie": self._generate_cookie(), "Token": meta_token}) as event_source:
+
+        async with aconnect_sse(
+            client,
+            "GET",
+            f"{self._base_url}/api/searchV2",
+            params={"sessionId": conv_id},
+            headers={**FAKE_HEADERS, "Cookie": self._generate_cookie(), "Token": meta_token},
+        ) as event_source:
             async for sse in event_source.aiter_sse():
                 if sse.data == "[DONE]":
                     break
@@ -101,6 +133,14 @@ class UnofficialBackend(BackendBase):
                     yield json.loads(sse.data)
                 except json.JSONDecodeError:
                     continue
+
+    async def validate_auth(self) -> bool:
+        """Check if current cookies are valid by fetching meta-token."""
+        try:
+            await self._acquire_meta_token()
+            return True
+        except AuthError:
+            return False
 
     def _extract_summary(self, chunks: list[dict]) -> str | None:
         texts = [chunk.get("text", "") for chunk in chunks if chunk.get("text")]

@@ -40,6 +40,16 @@ class MetasoClient:
     def is_connected(self) -> bool:
         return self._core.is_open
 
+    async def validate_auth(self) -> bool:
+        """Check if current authentication is valid.
+
+        For official backend: always True (API key doesn't expire within session).
+        For unofficial backend: tries to fetch meta-token.
+        """
+        if hasattr(self._core.backend, "validate_auth"):
+            return await self._core.backend.validate_auth()
+        return True
+
     @classmethod
     def from_api_key(cls, api_key: str, **kwargs) -> MetasoClient:
         auth = ApiKeyAuth(api_key=api_key)

@@ -110,7 +110,7 @@ def test_logout_clears_credentials(monkeypatch, tmp_path):
     runner = CliRunner()
     result = runner.invoke(cli, ["logout"])
     assert result.exit_code == 0
-    assert "Credentials cleared" in result.output
+    assert "cleared" in result.output
     assert not cookie_file.exists()
 
 
@@ -120,6 +120,23 @@ def test_config_set_cookie(monkeypatch, tmp_path):
     result = runner.invoke(cli, ["config", "set", "cookie", "myuid-mysid"])
     assert result.exit_code == 0
     assert "saved" in result.output
+
+
+def test_auth_check_no_credentials(monkeypatch, tmp_path):
+    monkeypatch.delenv("METASO_API_KEY", raising=False)
+    monkeypatch.setenv("METASO_HOME", str(tmp_path))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["auth-check"])
+    assert result.exit_code == 0
+    assert "not authenticated" in result.output
+
+
+def test_auth_check_with_api_key(monkeypatch):
+    monkeypatch.setenv("METASO_API_KEY", "sk-test")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["auth-check"])
+    assert result.exit_code == 0
+    assert "valid" in result.output
 
 
 def test_skill_install(monkeypatch, tmp_path):
