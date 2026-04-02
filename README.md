@@ -7,17 +7,17 @@
 
 ## Features
 
-| Category | Capabilities |
-|----------|-------------|
-| **Search** | Web, document, paper, image, video, podcast scopes |
-| **Search Modes** | Concise (~3s), Detail (~5s), Deep Research (30-120s) |
-| **Read URL** | Extract content from any URL as markdown or JSON |
-| **Chat** | RAG intelligent Q&A based on search results |
-| **Topics** | Create, list, delete knowledge base topics |
-| **Files** | Upload, list, delete files in topics |
-| **Bookshelf** | Add and manage books/PDFs |
-| **Streaming** | Progressive SSE output for all search modes |
-| **Dual Backend** | Official API (API key) + reverse-engineered API (browser cookie) |
+| Category | Capabilities | Backend |
+|----------|-------------|---------|
+| **Search** | Web, document, paper, image, video, podcast scopes | Both |
+| **Search Modes** | Concise (~3s), Detail (~5s), Deep Research (30-120s) | Both |
+| **Streaming** | Progressive SSE output for all search modes | Both |
+| **Read URL** | Extract content from any URL as markdown or JSON | Official |
+| **Chat** | RAG intelligent Q&A based on search results | Official |
+| **Topics** | Create, delete knowledge base topics | Official |
+| **Files** | Upload, check progress, delete files in topics | Official |
+| **Bookshelf** | Add books/PDFs by URL | Official |
+| **Dual Backend** | Official API (API key) + reverse-engineered API (browser cookie) | - |
 
 ## Three Ways to Use
 
@@ -81,20 +81,20 @@ metaso read "https://example.com"
 metaso chat "what is MCP protocol"
 ```
 
-### Knowledge Base
+### Knowledge Base (Official API only)
 
 ```bash
 # Topics
-metaso topic create "My Research"
-metaso topic list --json
+metaso topic create "My Research" --json  # Returns id + dirRootId
 metaso topic delete <id>
 
-# Files
-metaso file upload ./paper.pdf --topic <id>
-metaso file list --topic <id> --json
+# Files (use dirRootId from topic create)
+metaso file upload ./paper.pdf --dir-root-id <dirRootId> --json
+metaso file progress <file_id>
+metaso file delete <file_id>
 
 # Bookshelf
-metaso book add "https://example.com/paper.pdf" --topic <id>
+metaso book add "https://example.com/paper.pdf" --json
 ```
 
 ## Python API
@@ -117,9 +117,10 @@ async def main():
         answer = await client.chat.ask("what is RAG?")
         print(answer.answer)
 
-        # Topics & files
+        # Topics & files (official API only)
         topic = await client.topics.create("Research")
-        file = await client.files.upload(topic.id, "paper.pdf")
+        file = await client.files.upload(topic.dir_root_id, "paper.pdf")
+        progress = await client.files.progress(file.id)
 
 asyncio.run(main())
 ```

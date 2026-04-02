@@ -1,118 +1,113 @@
 ---
 name: metaso
-description: Metaso AI search - full programmatic access. Search web/academic sources, read URLs, RAG chat, manage knowledge base topics, upload files. Activates on explicit /metaso or intent like "search for X on Metaso"
+description: Metaso AI search - search web/academic sources, read URLs, RAG chat, manage topics and files. Activates on explicit /metaso or intent like "search for X on Metaso"
 ---
 <!-- metaso-py v0.1.0 -->
 
 # Metaso AI Search
 
-Python client for Metaso AI search with dual backend support (official API + browser-based auth).
+Python client for Metaso AI search with dual backend support.
 
 ## Prerequisites
 
 ```bash
 pip install metaso-py
 metaso status              # Check auth
-metaso config set api-key <key>  # Set API key
+metaso config set api-key <key>  # Set API key (from https://metaso.cn/search-api/api-keys)
 # OR
-metaso login               # Browser login (extracts cookies)
+metaso login               # Browser login (cookie-based, for unofficial backend)
 ```
+
+## API Coverage
+
+### Official Backend (API Key)
+
+Verified against real API. All endpoints tested.
+
+| Task | Command | Verified |
+|------|---------|:--------:|
+| Search | `metaso search "query"` | Yes |
+| Search (scope) | `metaso search "query" --scope paper` | Yes |
+| Search (modes) | `metaso search "query" --mode research` | Yes |
+| Search (stream) | `metaso search "query" --mode research --stream` | Yes |
+| Read URL | `metaso read "https://..."` | Yes |
+| Chat (RAG) | `metaso chat "question"` | Yes |
+| Create topic | `metaso topic create "name" --json` | Yes |
+| Delete topic | `metaso topic delete <id>` | Yes |
+| Upload file | `metaso file upload ./file.pdf --dir-root-id <id> --json` | Yes |
+| File progress | `metaso file progress <file_id>` | Yes |
+| Delete file | `metaso file delete <id>` | Yes |
+| Add book | `metaso book add <url> --json` | Yes |
+
+### Unofficial Backend (Cookie auth via `metaso login`)
+
+Uses reverse-engineered web API. May break if Metaso changes their frontend.
+
+| Task | Command | Note |
+|------|---------|------|
+| Search | `metaso search "query"` | Uses session + SSE streaming |
+| Search (stream) | `metaso search "query" --stream` | Progressive output |
+
+### Not Available
+
+These have no known API endpoint (official or unofficial):
+
+- List topics
+- List files
+- List books
+- User info
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Check status | `metaso status` |
-| Set API key | `metaso config set api-key <key>` |
-| Set cookie | `metaso config set cookie <uid-sid>` |
-| Browser login | `metaso login` |
-| Logout | `metaso logout` |
-| Auth check | `metaso auth-check` |
-| Search (webpage) | `metaso search "query"` |
-| Search (paper) | `metaso search "query" --scope paper` |
-| Search (all scopes) | `metaso search "query" --scope <webpage\|document\|paper\|image\|video\|podcast>` |
-| Search (with summary) | `metaso search "query" --include-summary` |
-| Search (JSON) | `metaso search "query" --json` |
-| Deep research | `metaso search "query" --mode research` |
-| Deep research (stream) | `metaso search "query" --mode research --stream` |
-| Read URL | `metaso read "https://..." --json` |
-| Read URL (markdown) | `metaso read "https://..." --format markdown` |
-| Chat (RAG Q&A) | `metaso chat "question" --json` |
-| Create topic | `metaso topic create "name" --json` |
-| List topics | `metaso topic list --json` |
-| Delete topic | `metaso topic delete <id>` |
-| Upload file | `metaso file upload ./file.pdf --topic <id> --json` |
-| List files | `metaso file list --topic <id> --json` |
-| Delete file | `metaso file delete <id>` |
-| Add book | `metaso book add <url> --topic <id> --json` |
-| List books | `metaso book list --topic <id> --json` |
-| User info | `metaso user --json` |
+| Task | Command | Backend |
+|------|---------|---------|
+| Check status | `metaso status` | - |
+| Auth check | `metaso auth-check` | - |
+| Set API key | `metaso config set api-key <key>` | - |
+| Set cookie | `metaso config set cookie <uid-sid>` | - |
+| Browser login | `metaso login` | - |
+| Logout | `metaso logout` | - |
+| Search | `metaso search "query" [--scope X] [--mode X] [--stream] [--json]` | Both |
+| Read URL | `metaso read "https://..." [--format json\|markdown] [--json]` | Official |
+| Chat | `metaso chat "question" [--json]` | Official |
+| Create topic | `metaso topic create "name" [--json]` | Official |
+| Delete topic | `metaso topic delete <id>` | Official |
+| Upload file | `metaso file upload <path> --dir-root-id <id> [--json]` | Official |
+| File progress | `metaso file progress <file_id>` | Official |
+| Delete file | `metaso file delete <id>` | Official |
+| Add book | `metaso book add <url> [--json]` | Official |
+| Install skill | `metaso skill install` | - |
+
+**Search scopes:** webpage, document, paper, image, video, podcast
+**Search modes:** concise (~3s), detail (~5s), research (30-120s)
 
 ## Autonomy Rules
 
 **Run automatically (no confirmation):**
-- `metaso status` - check state
-- `metaso auth-check` - verify credentials
+- `metaso status` / `metaso auth-check`
 - `metaso search` - execute searches
 - `metaso read` - read URL content
 - `metaso chat` - RAG Q&A
-- `metaso topic list` - list topics
-- `metaso file list` - list files
-- `metaso book list` - list books
-- `metaso user` - user info
+- `metaso file progress` - check processing status
 
 **Ask before running:**
 - `metaso login` - opens browser
 - `metaso logout` - clears credentials
-- `metaso topic create` - creates resource
-- `metaso topic delete` - destructive
-- `metaso file delete` - destructive
-- `metaso file upload` - writes data
-- `metaso book add` - writes data
+- `metaso topic create` / `metaso topic delete` - modifies data
+- `metaso file upload` / `metaso file delete` - modifies data
+- `metaso book add` - modifies data
 - `metaso config set` - modifies config
-
-## JSON Output
-
-All commands support `--json` for structured output:
-
-```json
-// metaso search "AI" --json
-{"query": "AI", "results": [{"id": "...", "title": "...", "url": "...", "snippet": "...", "source": "webpage"}], "summary": "...", "session_id": "..."}
-
-// metaso read "https://..." --json
-{"url": "...", "content": "...", "format": "markdown"}
-
-// metaso chat "question" --json
-{"message": "...", "answer": "...", "model": "fast"}
-
-// metaso topic list --json
-{"topics": [{"id": "...", "name": "...", "dir_root_id": "..."}]}
-
-// metaso status (text only)
-Profile: default
-API Key: sk-xxx...xxxx
-Backend: official
-```
 
 ## Deep Research (Background Pattern)
 
-Deep research (`--mode research`) can take 30-120 seconds. For non-blocking usage,
-use `--stream` which returns results progressively as they are generated.
+Deep research (`--mode research`) can take 30-120 seconds.
 
-**Interactive (blocking):**
-```bash
-metaso search "AI agent trends" --mode research
-```
-
-**Streaming (progressive, recommended):**
+**Streaming (recommended):**
 ```bash
 metaso search "AI agent trends" --mode research --stream
 ```
 
 **Agent background pattern (non-blocking):**
-When running deep research from an agent context, dispatch to a background subagent
-so the main conversation continues while research runs:
-
 ```python
 Agent(
     prompt='Run this command and return the full output:\n'
@@ -122,32 +117,53 @@ Agent(
 )
 ```
 
-The subagent runs the research, and the agent is notified when it completes.
-This is the recommended pattern for deep research in agent workflows.
+## Typical Workflow
 
-**Search modes:**
-| Mode | Speed | Output |
-|------|-------|--------|
-| `concise` | Fast (~3s) | References + short summary |
-| `detail` | Medium (~5s) | References + detailed summary |
-| `research` | Slow (30-120s) | Full AI analysis report + many references + follow-up questions |
+```bash
+# 1. Create topic and note the dirRootId
+metaso topic create "My Research" --json
+# → {"id": "123", "name": "My Research", "dir_root_id": "456"}
 
-**Note:** `metaso chat` uses the search API internally (mode=fast). For deeper
-answers, use `metaso search "question" --mode research` instead.
+# 2. Upload files using dirRootId (not topic id)
+metaso file upload paper.pdf --dir-root-id 456 --json
+# → {"id": "789", "file_name": "paper.pdf", ...}
+
+# 3. Check processing progress
+metaso file progress 789
+# → Progress: 100%
+
+# 4. Search with topic context (via session)
+metaso search "summarize the paper" --mode research
+```
+
+## JSON Output
+
+```json
+// metaso search "AI" --json
+{"query": "AI", "results": [...], "summary": "...", "session_id": "..."}
+
+// metaso read "https://..." --json
+{"url": "...", "content": "...", "format": "markdown"}
+
+// metaso chat "question" --json
+{"message": "...", "answer": "...", "model": "fast"}
+
+// metaso topic create "X" --json
+{"id": "...", "name": "X", "dir_root_id": "...", "created_at": null}
+```
 
 ## Error Handling
 
 | Error | Action |
 |-------|--------|
-| "No credentials found" | Run `metaso config set api-key <key>` or `metaso login` |
-| "Invalid API key" | Check METASO_API_KEY or re-set via config |
+| "No credentials found" | `metaso config set api-key <key>` or `metaso login` |
+| "Invalid API key" | Check key at https://metaso.cn/search-api/api-keys |
 | "meta-token not found" | Session expired, run `metaso login` |
 | "Rate limit exceeded" | Wait and retry |
 | "does not support" | Operation not available on current backend |
 
 ## Multi-Account
 
-Use `--profile` for multiple accounts:
 ```bash
 metaso --profile work config set api-key <key>
 metaso --profile work search "query"
