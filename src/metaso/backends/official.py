@@ -101,7 +101,10 @@ class OfficialBackend(BackendBase):
         if stream:
             return self._search_stream(query, scope=scope, session_id=session_id, **kwargs)
 
+        mode = kwargs.get("mode")
         body: dict[str, Any] = {"question": query, "lang": "zh", "stream": False}
+        if mode:
+            body["mode"] = mode
         if session_id:
             body["sessionId"] = session_id
 
@@ -122,6 +125,7 @@ class OfficialBackend(BackendBase):
         return SearchResponse(
             query=query,
             results=results,
+            summary=payload.get("text"),
             session_id=str(payload.get("sessionId", "")) if payload.get("sessionId") else None,
         )
 

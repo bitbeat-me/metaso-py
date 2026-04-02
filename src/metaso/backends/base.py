@@ -1,10 +1,21 @@
 """Abstract backend base class with capability model."""
+
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from pathlib import Path
+
 from metaso.exceptions import BackendError
-from metaso.types import Book, File, SearchResponse, SearchResult, Topic, UserInfo, ReaderResponse, ChatResponse
+from metaso.types import (
+    Book,
+    ChatResponse,
+    File,
+    ReaderResponse,
+    SearchResponse,
+    Topic,
+    UserInfo,
+)
 
 
 class BackendBase(ABC):
@@ -16,8 +27,14 @@ class BackendBase(ABC):
         return operation in self.capabilities()
 
     @abstractmethod
-    async def search(self, query: str, scope: str = "webpage", stream: bool = False,
-                     session_id: str | None = None, **kwargs) -> SearchResponse | AsyncIterator[dict]: ...
+    async def search(
+        self,
+        query: str,
+        scope: str = "webpage",
+        stream: bool = False,
+        session_id: str | None = None,
+        **kwargs,
+    ) -> SearchResponse | AsyncIterator[dict]: ...
 
     async def read_url(self, url: str, format: str = "markdown") -> ReaderResponse:
         raise BackendError(f"{self.__class__.__name__} does not support read_url")

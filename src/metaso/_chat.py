@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from metaso._core import ClientCore
 from metaso.types import ChatResponse
 

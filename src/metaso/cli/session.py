@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import time
 
 import click
 
@@ -36,7 +35,7 @@ def status_cmd(ctx):
 
 
 def _run_browser(*args: str, timeout: int = 60) -> str | None:
-    """Run an agent-browser command with --session-name metaso. Returns stdout or None on failure."""
+    """Run agent-browser with --session-name metaso. Returns output or None."""
     try:
         result = subprocess.run(
             ["agent-browser", "--session-name", "metaso", *args],
@@ -118,8 +117,6 @@ def login_cmd(ctx, force):
             click.echo("Session expired. Opening browser for login...")
 
     click.echo("Opening Metaso in browser...")
-    click.echo("Please complete login (phone number or WeChat scan).")
-    click.echo()
 
     if _run_browser("open", "https://metaso.cn", timeout=30) is None:
         click.echo("Error: agent-browser not found or failed to open.", err=True)
@@ -127,25 +124,28 @@ def login_cmd(ctx, force):
         raise SystemExit(1)
     _run_browser("wait", "--load", "networkidle", timeout=30)
 
-    click.echo("Waiting for login... (press Ctrl+C to cancel)")
+    click.echo()
+    click.echo("Instructions:")
+    click.echo("  1. Complete login in the browser (phone or WeChat scan)")
+    click.echo("  2. Wait until you see the Metaso homepage")
+    click.echo("  3. Press ENTER here to save and close")
+    click.echo()
 
-    max_attempts = 60  # 5 minutes at 5s intervals
-    for attempt in range(max_attempts):
-        cookies = _extract_cookies_from_browser()
-        if cookies:
-            _save_cookies(cookies, profile)
-            _run_browser("close")
-            click.echo("\nLogin successful!")
-            click.echo(f"  uid: {cookies['uid'][:8]}...")
-            click.echo(f"  sid: {cookies['sid'][:8]}...")
-            click.echo("  Session persisted for future silent refresh.")
-            return
+    input("[Press ENTER when logged in] ")
 
-        time.sleep(5)
-
-    _run_browser("close")
-    click.echo("Login timed out. Please try again.", err=True)
-    raise SystemExit(1)
+    cookies = _extract_cookies_from_browser()
+    if cookies:
+        _save_cookies(cookies, profile)
+        _run_browser("close")
+        click.echo("Login successful!")
+        click.echo(f"  uid: {cookies['uid'][:8]}...")
+        click.echo(f"  sid: {cookies['sid'][:8]}...")
+        click.echo("  Session persisted for future silent refresh.")
+    else:
+        _run_browser("close")
+        click.echo("Login failed: uid/sid cookies not found.", err=True)
+        click.echo("Make sure you completed the login before pressing ENTER.", err=True)
+        raise SystemExit(1)
 
 
 @click.command("logout")

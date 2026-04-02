@@ -1,11 +1,15 @@
 """Core infrastructure for the Metaso client."""
+
 from __future__ import annotations
+
 import logging
+
 import httpx
+
 from metaso.backends.base import BackendBase
 
 logger = logging.getLogger(__name__)
-DEFAULT_TIMEOUT = 30.0
+DEFAULT_TIMEOUT = 120.0
 DEFAULT_CONNECT_TIMEOUT = 10.0
 USER_AGENT = "metaso-py/0.1.0"
 

@@ -1,8 +1,11 @@
 """Authentication for the Metaso client."""
+
 from __future__ import annotations
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
+
 
 @dataclass
 class ApiKeyAuth:
@@ -11,6 +14,7 @@ class ApiKeyAuth:
     @property
     def header_value(self) -> str:
         return f"Bearer {self.api_key}"
+
 
 @dataclass
 class CookieAuth:
@@ -36,6 +40,8 @@ class CookieAuth:
     @classmethod
     def from_storage(cls, path: Path) -> CookieAuth:
         if not path.exists():
-            raise FileNotFoundError(f"Cookie file not found: {path}\nRun 'metaso login' to authenticate.")
+            raise FileNotFoundError(
+                f"Cookie file not found: {path}\nRun 'metaso login' to authenticate."
+            )
         data = json.loads(path.read_text(encoding="utf-8"))
         return cls.from_cookies(data)
